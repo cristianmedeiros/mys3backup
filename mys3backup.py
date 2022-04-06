@@ -60,7 +60,7 @@ def parse_geo(latitude_ref, latitude, longitude_ref, longitude):
 def get_location(lat_long):
     latitude = lat_long[0]
     longitude = lat_long[1]
-    APIKEY = "db378c3cab595944ca9c796ffff5055f"
+    APIKEY = os.getenv('openweather_apikey')
     url = "http://api.openweathermap.org/geo/1.0/reverse?lat={}&lon={}&limit=5&appid={}".format(latitude, longitude, APIKEY)
     response = requests.get(url)
     data = response.json()
