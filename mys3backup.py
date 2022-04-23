@@ -21,8 +21,12 @@ from dotenv import load_dotenv
 
 def get_exif(file_name) -> Exif:
     try:
+
         image: Image.Image = Image.open(file_name)
+
     except UnidentifiedImageError:
+        raise
+    except OSError:
         raise
 
     return image.getexif()
@@ -117,12 +121,15 @@ def s3_upload(local_directory, s3_path, bucket):
         client.head_object(Bucket=bucket, Key=s3_path)
     except:
         client.upload_file(local_directory, bucket, s3_path, ExtraArgs={'StorageClass': 'DEEP_ARCHIVE'})
+        print("File saved: {}".format(s3_path))
 
 def main():
     load_dotenv()
     #Le a pasta de origem
     folder = sys.argv[1]
     folder_content = os.walk(folder)
+    bucket = os.getenv('bucket')
+
     for dirName, subdirList, fileList in folder_content:
         for fname in fileList:
             origin_file_path = os.path.join(dirName, fname)
@@ -131,7 +138,6 @@ def main():
 
                 try:
                     exifdata = get_exif(origin_file_path)
-                    
                     if exifdata:
                         data_created_at = get_created_at(exifdata, origin_file_path)
                         created_at = parse_created_at(data_created_at)
@@ -149,17 +155,18 @@ def main():
                         path = os.path.join(tempfile.gettempdir(), "backup", folder)
                         destiny_file_path = os.path.join(tempfile.gettempdir(), "backup", folder, fname)
                         s3_path = os.path.join(folder, fname)
-                        print("Origin: {}  Destiny: {}".format(origin_file_path, destiny_file_path))
 
                         os.makedirs(path, exist_ok=True)
 
                         shutil.copy2(origin_file_path, destiny_file_path)
+                        s3_upload(destiny_file_path, s3_path, bucket)
 
-                        bucket = os.getenv('bucket')
-                        s3_upload(file_path, s3_path, bucket)
                 except UnidentifiedImageError:
+                    continue
+                except OSError:
                     continue
                 except:
                     print("Erro na imagem: {} Message: {}".format(origin_file_path, sys.exc_info()))
+            break
 if __name__ == "__main__":
     main()
